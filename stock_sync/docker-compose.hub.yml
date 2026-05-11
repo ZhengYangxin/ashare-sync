@@ -1,0 +1,119 @@
+# Ashare-sync: A股数据同步系统 - Docker Compose (Hub 镜像部署版)
+# 无需下载源码，直接从 Docker Hub 拉取镜像运行
+#
+# 使用方法:
+#   mkdir -p ashare-sync && cd ashare-sync
+#   curl -O https://raw.githubusercontent.com/ZhengYangxin/ashare-sync/main/stock_sync/docker-compose.hub.yml
+#   curl -O https://raw.githubusercontent.com/ZhengYangxin/ashare-sync/main/stock_sync/.env.example
+#   mv .env.example .env
+#   nano .env  # 填入 TUSHARE_TOKEN 和 DB_PASSWORD
+#   docker compose -f docker-compose.hub.yml up -d
+#
+# 数据导入（可选）:
+#   方式一：配置INIT_DATA_URL自动下载
+#   方式二：将ashare_data_last.sql拷贝到exports目录
+#
+# 端口说明:
+#   - nginx:    http://localhost:8080 (前端+API)
+#   - mysql:    localhost:3306
+#   - phpmyadmin: http://localhost:8090
+#
+# 说明:
+#   - 单容器模式：backend 同时运行调度器（后台线程）和 Flask API
+#   - 不再需要独立的 scheduler 服务
+
+services:
+  # MySQL数据库
+  mysql:
+    image: mysql:8.4
+    container_name: ashare_sync_mysql
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME:-ashare}
+      - TZ=Asia/Shanghai
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_0900_ai_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - sync_network
+    restart: always
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Web后端服务 (Flask API + 调度器，单容器模式)
+  backend:
+    image: zhengyancy/ashare-sync:backend
+    container_name: ashare_sync_backend
+    environment:
+      - DB_TYPE=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME:-ashare}
+      - WEB_PORT=5000
+      - TZ=Asia/Shanghai
+      - DOCKER_ENV=true
+      # 初始数据导入（可选）
+      - INIT_DATA_URL=${INIT_DATA_URL:-}
+      - EXPORT_DIR=/app/exports
+    volumes:
+      - backend_logs:/app/logs
+      - config_data:/app/config
+      # SQL导出文件目录
+      - ./exports:/app/exports
+    networks:
+      - sync_network
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: python main.py --web
+
+  # Nginx 前端
+  nginx:
+    image: zhengyancy/ashare-sync:frontend
+    container_name: ashare_sync_nginx
+    ports:
+      - "${NGINX_PORT:-8080}:80"
+    # SQL导出文件下载（通过nginx直接访问）
+    volumes:
+      - ./exports:/usr/share/nginx/html/exports:ro
+    networks:
+      - sync_network
+    restart: always
+    depends_on:
+      - backend
+
+  # phpMyAdmin（可选）
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: ashare_sync_phpmyadmin
+    restart: always
+    depends_on:
+      - mysql
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: ${DB_PASSWORD}
+      UPLOAD_LIMIT: 100M
+      PMA_ARBITRARY: 1
+    ports:
+      - "${PMA_PORT:-8090}:80"
+    networks:
+      - sync_network
+
+networks:
+  sync_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  backend_logs:
+  config_data:
