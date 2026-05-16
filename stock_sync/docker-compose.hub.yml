@@ -33,7 +33,7 @@ services:
       - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
       - MYSQL_DATABASE=${DB_NAME:-ashare}
       - TZ=Asia/Shanghai
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_0900_ai_ci
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_0900_ai_ci --max-allowed-packet=512M
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
