@@ -49,30 +49,13 @@ mkdir -p ashare-sync && cd ashare-sync
 curl -O https://raw.githubusercontent.com/ZhengYangxin/ashare-sync/main/stock_sync/docker-compose.hub.yml
 curl -O https://raw.githubusercontent.com/ZhengYangxin/ashare-sync/main/stock_sync/.env.example
 mv .env.example .env
+mkdir -p exports
 
 # 3. 启动所有服务（数据库自动初始化）
 docker compose -f docker-compose.hub.yml up -d
 
 # 4. 访问 http://localhost:8080 → 数据源配置 填写 Token
-```
 
-### 方式二：本地源码部署（开发测试用）
-
-如果你需要修改代码或定制开发：
-
-```bash
-# 1. 克隆源码
-git clone https://github.com/ZhengYangxin/SdShare.git
-cd SdShare/stock_sync
-
-# 2. 复制配置
-cp .env.example .env
-
-# 3. 启动所有服务（从本地源码构建，数据库自动初始化）
-docker compose up -d
-
-# 4. 访问 http://localhost:8080 → 数据源配置 填写 Token
-```
 
 > **注意**: 本地源码部署会从本地代码构建 Docker 镜像，适合开发测试。
 > 正式部署推荐使用方式一，从 Docker Hub 拉取预构建镜像。
@@ -82,7 +65,6 @@ docker compose up -d
 | 服务 | 地址 |
 |------|------|
 | Web 界面 | http://localhost:8080 |
-| phpMyAdmin | http://localhost:8090 |
 
 ## 配置说明
 
@@ -93,7 +75,6 @@ docker compose up -d
 |------|--------|------|
 | `DB_PASSWORD` | 空（root无密码） | 生产环境建议设置 |
 | `NGINX_PORT` | 8080 | Web 端口 |
-| `PMA_PORT` | 8090 | phpMyAdmin 端口 |
 
 > Tushare Token 通过 Web 界面「数据源配置」填写（不在 .env 文件中）。如需在 .env 中预注入，请设置 `TUSHARE_TOKEN_1` 和 `TUSHARE_ACTIVE` 环境变量。
 
