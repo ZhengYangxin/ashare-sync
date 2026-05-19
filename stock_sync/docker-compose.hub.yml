@@ -90,25 +90,6 @@ services:
     depends_on:
       - backend
 
-  # phpMyAdmin（可选）
-  phpmyadmin:
-    image: phpmyadmin:latest
-    container_name: ashare_sync_phpmyadmin
-    restart: always
-    depends_on:
-      - mysql
-    environment:
-      PMA_HOST: mysql
-      PMA_PORT: 3306
-      PMA_USER: root
-      PMA_PASSWORD: ${DB_PASSWORD}
-      UPLOAD_LIMIT: 100M
-      PMA_ARBITRARY: 1
-    ports:
-      - "${PMA_PORT:-8090}:80"
-    networks:
-      - sync_network
-
 networks:
   sync_network:
     driver: bridge
